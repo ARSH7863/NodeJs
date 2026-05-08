@@ -26,15 +26,16 @@ app.post("/signup", async (req, res) => {
 });
 
 app.get("/user", async (req, res) => {
+  // console.log(req);
   const userEmail = req.body.emailId;
 
   try {
-    const users = await User.findOne({ emailId: userEmail });
+    const user = await User.findOne({ emailId: userEmail });
 
-    if (users.length === 0) {
-      res.status(404).send(`User Not Found`);
+    if (!user) {
+      return res.status(404).send(`User Not Found`);
     } else {
-      res.send(users);
+      res.send(user);
     }
   } catch (err) {
     res.status(400).send(`Something went wrong!`);
