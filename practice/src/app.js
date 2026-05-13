@@ -2,6 +2,7 @@ const express = require("express");
 const connectDB = require("./config/database.js");
 const app = express();
 const User = require("./models/user.js");
+const { validateSignUpData } = require("./utils/validation.js");
 
 app.use(express.json());
 
@@ -16,6 +17,11 @@ app.post("/signup", async (req, res) => {
   //   password: "dhonibhai",
   // };
 
+  // Validation of data
+
+  // Encrypt the password
+
+  // Creating a new User instance of the User Model
   try {
     const user = new User(req.body);
     await user.save();
