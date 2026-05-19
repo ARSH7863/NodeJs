@@ -4,8 +4,11 @@ const app = express();
 const User = require("./models/user.js");
 const { validateSignUpData } = require("./utils/validation.js");
 const bcrypt = require("bcrypt");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 
 app.use(express.json());
+app.use(cookieParser());
 
 // Creating a new Instance of the User model
 app.post("/signup", async (req, res) => {
@@ -53,6 +56,14 @@ app.post("/login", async (req, res) => {
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (isPasswordValid) {
+      // Create a JWT Token
+
+      const token = await jwt.sign({ _id: user._id }, "ArshShaikh@12");
+      console.log(token);
+
+      // Add the token to cookie and send the response back to the user
+      res.cookie("token", "test token");
+
       res.send(`Login Successful!`);
     } else {
       return res.status(400).send(`Invalid credentials`);
@@ -60,6 +71,18 @@ app.post("/login", async (req, res) => {
   } catch (err) {
     res.status(500).send(`Error: ${err.message}`);
   }
+});
+
+app.get("/profile", async (req, res) => {
+  const cookies = req.cookies;
+
+  const { token } = cookies;
+  // Validate My Token
+  const decodedMessage = await jwt.verify(token, "ArshShaikh@12");
+  console.log(decodedMessage);
+
+  console.log(cookies);
+  res.send(`Reading cookies`);
 });
 
 app.get("/user", async (req, res) => {
