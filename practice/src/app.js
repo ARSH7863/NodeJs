@@ -62,7 +62,7 @@ app.post("/login", async (req, res) => {
       console.log(token);
 
       // Add the token to cookie and send the response back to the user
-      res.cookie("token", "test token");
+      res.cookie("token", token);
 
       res.send(`Login Successful!`);
     } else {
@@ -74,15 +74,32 @@ app.post("/login", async (req, res) => {
 });
 
 app.get("/profile", async (req, res) => {
-  const cookies = req.cookies;
+  try {
+    const cookies = req.cookies;
 
-  const { token } = cookies;
-  // Validate My Token
-  const decodedMessage = await jwt.verify(token, "ArshShaikh@12");
-  console.log(decodedMessage);
+    const { token } = cookies;
+    if (!token) {
+      throw new Error("Please login!");
+    }
 
-  console.log(cookies);
-  res.send(`Reading cookies`);
+    // Validate My Token
+    const decodedMessage = await jwt.verify(token, "ArshShaikh@12");
+    const { _id } = decodedMessage;
+
+    console.log("Logged In User is: " + _id);
+
+    // console.log(cookies);
+    // res.send(`Reading cookies`);
+
+    const user = await User.findById(_id);
+
+    if (!user) {
+      throw new Error(`User does not exists.`);
+    }
+    res.send(user);
+  } catch (err) {
+    res.status(500).send(`Error: ${err.message}`);
+  }
 });
 
 app.get("/user", async (req, res) => {
