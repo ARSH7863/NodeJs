@@ -20,3 +20,5 @@
 - GET /requests/recieved
 
 Status: ignored, interested, accepted, rejected
+
+Read this article - https://www.mongodb.com/docs/manual/core/indexes/index-types/index-compound/

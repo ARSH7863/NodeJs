@@ -48,15 +48,14 @@ requestRouter.post(
       });
 
       const toUser = await User.findById(toUserId);
-
       if (!toUser) {
-        return res.status(400).json({ message: "User Not Found!" });
+        return res.status(404).json({ message: "User Not Found!" });
       }
 
       const data = await connectionRequest.save();
 
       res.json({
-        message: "Connection request sent successfully!",
+        message: req.user.firstName + "is"+ status + "in" + toUser.firstName,
         data,
       });
     } catch (err) {
