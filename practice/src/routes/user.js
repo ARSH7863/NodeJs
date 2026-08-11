@@ -1,48 +1,24 @@
 const express = require("express");
-const User = require("../models/user");
-
 const userRouter = express.Router();
 
-userRouter.get("/user", async (req, res) => {
+const { userAuth } = require("../middleware/auth");
+const ConnectionRequestModel = require("../models/connectionRequest");
+
+// Get all the pending connection request for the loggedIn User
+userRouter.get("/user/requests/received", userAuth, async (req, res) => {
   try {
-    const { emailId } = req.query;
-
-    const user = await User.findOne({ emailId });
-
-    if (!user) {
-      return res.status(404).send("User not found");
-    }
-
-    res.send(user);
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-userRouter.patch("/user/:userId", async (req, res) => {
-  const { userId } = req.params;
-  const data = req.body;
-
-  try {
-    const user = await User.findByIdAndUpdate(userId, data, {
-      new: true,
-      runValidators: true,
+    const loggedInUser = req.user;
+    const connectionRequest = await ConnectionRequestModel.find({
+      toUserId: loggedInUser._id,
+      status: "interested",
     });
 
-    res.send(user);
+    res.json({
+      message: "Data Fetched Successfully!",
+      data: connectionRequest,
+    });
   } catch (err) {
-    res.status(400).send(err.message);
-  }
-});
-
-userRouter.delete("/delete/:userId", async (req, res) => {
-  const { userId } = req.params;
-
-  try {
-    const user = await User.findByIdAndDelete(userId);
-    res.send(`User Deleted successfully!`);
-  } catch (err) {
-    res.status(400).send(`User Not Found`);
+    req.statusCode(400).send("Error: " + err.message);
   }
 });
 
