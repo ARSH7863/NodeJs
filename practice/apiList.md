@@ -20,7 +20,8 @@
 - POST /request/review/:status/:userId
 
 ## userRouter
-- GET /connections
+- GET /user/connections
+- GET /user/requests/received
 - GET /requests/recieved
 
 Status: ignored, interested, accepted, rejected
