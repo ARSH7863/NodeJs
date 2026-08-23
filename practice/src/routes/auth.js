@@ -43,24 +43,20 @@ authRouter.post("/login", async (req, res) => {
   try {
     const { emailId, password } = req.body;
 
-    // Find user
     const user = await User.findOne({ emailId });
 
     if (!user) {
       return res.status(400).send("Invalid credentials");
     }
 
-    // Validate password
     const isPasswordValid = await user.validatePassword(password);
 
     if (!isPasswordValid) {
       return res.status(400).send("Invalid credentials");
     }
 
-    // Generate JWT
     const token = await user.getJWT();
 
-    // Set cookie
     res.cookie("token", token, {
       httpOnly: true,
       secure: false,
@@ -68,9 +64,11 @@ authRouter.post("/login", async (req, res) => {
       maxAge: 8 * 60 * 60 * 1000,
     });
 
-    res.send("Login Successful!");
+    res.json({
+      message: "Login Successful!",
+      user: user,
+    });
   } catch (err) {
-    console.error("Login error:", err);
     res.status(500).send(`Error: ${err.message}`);
   }
 });
