@@ -1,11 +1,15 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const validator = require("validator");
+const mongoose = require("mongoose");
 const profileRouter = express.Router();
 const User = require("../models/user.js");
 
 const { userAuth } = require("../middleware/auth.js");
 const { validateProfileEditData } = require("../utils/validation.js");
+
+const USER_SAFE_DATA =
+  "firstName lastName emailId photoURL age gender about skills";
 
 profileRouter.get("/profile/view", userAuth, async (req, res) => {
   try {
@@ -22,10 +26,8 @@ profileRouter.patch("/profile/edit", userAuth, async (req, res) => {
       throw new Error(`Invalid Edit Requests`);
     }
     const loggedInUser = req.user;
-    console.log(loggedInUser);
 
     Object.keys(req.body).forEach((key) => (loggedInUser[key] = req.body[key]));
-    console.log(loggedInUser);
     await loggedInUser.save();
 
     res.json({
@@ -34,6 +36,63 @@ profileRouter.patch("/profile/edit", userAuth, async (req, res) => {
     });
   } catch (err) {
     return res.status(400).send(`Error: ${err.message}`);
+  }
+});
+
+profileRouter.delete("/profile/delete", userAuth, async (req, res) => {
+  try {
+    const loggedInUser = req.user;
+
+    const deletedUser = await User.findByIdAndDelete(loggedInUser._id);
+
+    if (!deletedUser) {
+      return res.status(404).json({
+        message: "User not found!",
+      });
+    }
+
+    res.clearCookie("token");
+
+    res.status(200).json({
+      message: "Account deleted successfully!",
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Failed to delete account.",
+      error: err.message,
+    });
+  }
+});
+
+profileRouter.get("/user", userAuth, async (req, res) => {
+  try {
+    const { emailId } = req.query;
+
+    if (!emailId) {
+      return res.status(400).json({
+        message: "Email ID is required!",
+      });
+    }
+
+    const user = await User.findOne({
+      emailId: emailId.toLowerCase(),
+    }).select(USER_SAFE_DATA);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User Not Found!",
+      });
+    }
+
+    res.status(200).json({
+      message: "User fetched successfully!",
+      data: user,
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Something went wrong!",
+      error: err.message,
+    });
   }
 });
 
