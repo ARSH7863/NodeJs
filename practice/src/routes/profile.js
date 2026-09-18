@@ -96,15 +96,6 @@ profileRouter.get("/user", userAuth, async (req, res) => {
   }
 });
 
-profileRouter.get("/feed", async (req, res) => {
-  try {
-    const users = await User.find({});
-    res.send(users);
-  } catch (err) {
-    res.status(400).send("Users not found!");
-  }
-});
-
 profileRouter.patch("/profile/password", userAuth, async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
