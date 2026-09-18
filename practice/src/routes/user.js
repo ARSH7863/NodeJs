@@ -19,7 +19,7 @@ userRouter.get("/user/requests/received", userAuth, async (req, res) => {
 
     res.json({
       message: "Data Fetched Successfully!",
-      data: connectionRequests,
+      data: connectionRequests.filter((r) => r.fromUserId),
     });
   } catch (err) {
     res.status(400).json({
@@ -42,7 +42,7 @@ userRouter.get("/user/connections", userAuth, async (req, res) => {
       .populate("fromUserId", USER_SAFE_DATA)
       .populate("toUserId", USER_SAFE_DATA);
 
-    const data = connectionRequests.map((row) => {
+    const data = connectionRequests.filter((row) => row.fromUserId && row.toUserId).map((row) => {
       if (row.fromUserId._id.toString() === loggedInUser._id.toString()) {
         return row.toUserId;
       }
