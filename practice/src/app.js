@@ -10,12 +10,27 @@ const app = express();
 // MIDDLEWARE
 // =========================
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://13.61.17.142",
+  "https://devtinder-alf.pages.dev",
+  "https://devtinder7863.netlify.app",
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
     credentials: true,
   }),
 );
+
 
 app.use(express.json());
 app.use(cookieParser());
