@@ -62,10 +62,13 @@ const userSchema = new mongoose.Schema(
     githubId: {
       type: String,
     },
+    googleId: {
+      type: String,
+    },
     password: {
       type: String,
       required: function () {
-        return !this.githubId;
+        return !this.githubId && !this.googleId;
       },
     },
   },

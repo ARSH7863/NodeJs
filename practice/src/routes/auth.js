@@ -179,4 +179,125 @@ authRouter.get("/auth/github/callback", async (req, res) => {
   }
 });
 
+// ── 3. Google OAuth Initiation ───────────────────────────────────────────────
+authRouter.get("/auth/google", (req, res) => {
+  const isLocalhost =
+    req.get("host")?.includes("localhost") ||
+    req.get("host")?.includes("127.0.0.1");
+
+  // Build redirect_uri dynamically so it always matches the registered URI
+  // regardless of whether the server runs locally or on EC2
+  const serverUrl = isLocalhost
+    ? "http://localhost:7777"
+    : process.env.SERVER_URL || `http://${req.get("host")}`;
+
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const redirectUri = encodeURIComponent(`${serverUrl}/auth/google/callback`);
+  const scope = encodeURIComponent("openid email profile");
+
+  const googleAuthUrl =
+    `https://accounts.google.com/o/oauth2/v2/auth` +
+    `?client_id=${clientId}` +
+    `&redirect_uri=${redirectUri}` +
+    `&response_type=code` +
+    `&scope=${scope}` +
+    `&access_type=offline` +
+    `&prompt=select_account`;
+
+  res.redirect(googleAuthUrl);
+});
+
+
+// ── 4. Google OAuth Callback ─────────────────────────────────────────────────
+authRouter.get("/auth/google/callback", async (req, res) => {
+  const { code } = req.query;
+  const isLocalhost =
+    req.get("host")?.includes("localhost") ||
+    req.get("host")?.includes("127.0.0.1");
+  const clientUrl = isLocalhost
+    ? "http://localhost:5173"
+    : process.env.CLIENT_URL || "http://13.61.17.142";
+  const serverUrl = isLocalhost
+    ? "http://localhost:7777"
+    : process.env.SERVER_URL || "http://13.61.17.142:7777";
+
+  if (!code) {
+    return res.redirect(`${clientUrl}/login?error=OAuthFailed`);
+  }
+
+  try {
+    // 1. Exchange authorization code for tokens
+    const tokenResponse = await axios.post(
+      "https://oauth2.googleapis.com/token",
+      {
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: `${serverUrl}/auth/google/callback`,
+        grant_type: "authorization_code",
+      },
+      { headers: { "Content-Type": "application/json" } },
+    );
+
+    const { access_token, id_token } = tokenResponse.data;
+    if (!access_token) {
+      throw new Error("Failed to obtain access token from Google");
+    }
+
+    // 2. Fetch Google user profile
+    const userRes = await axios.get(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      {
+        headers: { Authorization: `Bearer ${access_token}` },
+      },
+    );
+    const gUser = userRes.data;
+    // gUser: { sub, email, email_verified, name, given_name, family_name, picture }
+
+    if (!gUser.email || !gUser.email_verified) {
+      return res.redirect(`${clientUrl}/login?error=NoEmail`);
+    }
+
+    // 3. Find existing user or create a new one
+    let user = await User.findOne({
+      $or: [{ emailId: gUser.email }, { googleId: gUser.sub }],
+    });
+
+    if (!user) {
+      user = new User({
+        firstName: gUser.given_name || gUser.name?.split(" ")[0] || "User",
+        lastName: gUser.family_name || "",
+        emailId: gUser.email,
+        googleId: gUser.sub,
+        photoURL: gUser.picture,
+        about: "Google Sign-In User",
+      });
+      await user.save();
+    } else if (!user.googleId) {
+      // Link Google to existing account
+      user.googleId = gUser.sub;
+      if (!user.photoURL || user.photoURL.includes("istockphoto")) {
+        user.photoURL = gUser.picture;
+      }
+      await user.save();
+    }
+
+    // 4. Generate JWT & set cookie
+    const token = await user.getJWT();
+    res.cookie("token", token, {
+      expires: new Date(Date.now() + 8 * 3600000),
+      httpOnly: true,
+      secure: false, // Set to true when HTTPS is enabled
+      sameSite: "lax",
+    });
+
+    // 5. Redirect to frontend
+    res.redirect(`${clientUrl}/`);
+  } catch (err) {
+    console.error("Google Auth Error:", err.response?.data || err.message);
+    res.redirect(`${clientUrl}/login?error=OAuthFailed`);
+  }
+});
+
 module.exports = authRouter;
+
