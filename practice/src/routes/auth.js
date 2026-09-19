@@ -99,6 +99,14 @@ authRouter.post("/logout", async (req, res) => {
 
 // ── 1. GitHub OAuth Initiation ──────────────────────────────────────────────
 authRouter.get("/auth/github", (req, res) => {
+  const isLocalhost =
+    req.get("host")?.includes("localhost") ||
+    req.get("host")?.includes("127.0.0.1");
+
+  const callbackUrl = isLocalhost
+    ? "http://localhost:7777/auth/github/callback"
+    : (process.env.GITHUB_CALLBACK_URL || "https://devtinder7863.netlify.app/api/auth/github/callback");
+
   const clientId = process.env.GITHUB_CLIENT_ID;
   let from = req.query.from || "";
   if (!from && req.headers.referer) {
@@ -107,8 +115,8 @@ authRouter.get("/auth/github", (req, res) => {
     } catch (_) {}
   }
   const stateParam = from ? `&state=${encodeURIComponent(from)}` : "";
-  const redirectUri = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email${stateParam}`;
-  res.redirect(redirectUri);
+  const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=user:email${stateParam}`;
+  res.redirect(authUrl);
 });
 // ── 2. GitHub OAuth Callback ────────────────────────────────────────────────
 authRouter.get("/auth/github/callback", async (req, res) => {
@@ -116,6 +124,10 @@ authRouter.get("/auth/github/callback", async (req, res) => {
   const isLocalhost =
     req.get("host")?.includes("localhost") ||
     req.get("host")?.includes("127.0.0.1");
+
+  const callbackUrl = isLocalhost
+    ? "http://localhost:7777/auth/github/callback"
+    : (process.env.GITHUB_CALLBACK_URL || "https://devtinder7863.netlify.app/api/auth/github/callback");
 
   let clientUrl = isLocalhost
     ? "http://localhost:5173"
@@ -136,6 +148,7 @@ authRouter.get("/auth/github/callback", async (req, res) => {
         client_id: process.env.GITHUB_CLIENT_ID,
         client_secret: process.env.GITHUB_CLIENT_SECRET,
         code,
+        redirect_uri: callbackUrl,
       },
       { headers: { Accept: "application/json" } },
     );
