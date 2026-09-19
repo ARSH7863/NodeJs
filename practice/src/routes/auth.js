@@ -92,18 +92,30 @@ authRouter.post("/logout", async (req, res) => {
 // ── 1. GitHub OAuth Initiation ──────────────────────────────────────────────
 authRouter.get("/auth/github", (req, res) => {
   const clientId = process.env.GITHUB_CLIENT_ID;
-  const redirectUri = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email`;
+  let from = req.query.from || "";
+  if (!from && req.headers.referer) {
+    try {
+      from = new URL(req.headers.referer).origin;
+    } catch (_) {}
+  }
+  const stateParam = from ? `&state=${encodeURIComponent(from)}` : "";
+  const redirectUri = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email${stateParam}`;
   res.redirect(redirectUri);
 });
 // ── 2. GitHub OAuth Callback ────────────────────────────────────────────────
 authRouter.get("/auth/github/callback", async (req, res) => {
-  const { code } = req.query;
+  const { code, state } = req.query;
   const isLocalhost =
     req.get("host")?.includes("localhost") ||
     req.get("host")?.includes("127.0.0.1");
-  const clientUrl = isLocalhost
+
+  let clientUrl = isLocalhost
     ? "http://localhost:5173"
-    : process.env.CLIENT_URL || "http://13.61.17.142";
+    : process.env.CLIENT_URL || "https://devtinder7863.netlify.app";
+
+  if (state && typeof state === "string" && (state.startsWith("http://") || state.startsWith("https://"))) {
+    clientUrl = state;
+  }
 
   if (!code) {
     return res.redirect(`${clientUrl}/login?error=OAuthFailed`);
@@ -195,6 +207,14 @@ authRouter.get("/auth/google", (req, res) => {
   const redirectUri = encodeURIComponent(`${serverUrl}/auth/google/callback`);
   const scope = encodeURIComponent("openid email profile");
 
+  let from = req.query.from || "";
+  if (!from && req.headers.referer) {
+    try {
+      from = new URL(req.headers.referer).origin;
+    } catch (_) {}
+  }
+  const stateParam = from ? `&state=${encodeURIComponent(from)}` : "";
+
   const googleAuthUrl =
     `https://accounts.google.com/o/oauth2/v2/auth` +
     `?client_id=${clientId}` +
@@ -202,7 +222,8 @@ authRouter.get("/auth/google", (req, res) => {
     `&response_type=code` +
     `&scope=${scope}` +
     `&access_type=offline` +
-    `&prompt=select_account`;
+    `&prompt=select_account` +
+    stateParam;
 
   res.redirect(googleAuthUrl);
 });
@@ -210,13 +231,17 @@ authRouter.get("/auth/google", (req, res) => {
 
 // ── 4. Google OAuth Callback ─────────────────────────────────────────────────
 authRouter.get("/auth/google/callback", async (req, res) => {
-  const { code } = req.query;
+  const { code, state } = req.query;
   const isLocalhost =
     req.get("host")?.includes("localhost") ||
     req.get("host")?.includes("127.0.0.1");
-  const clientUrl = isLocalhost
+  let clientUrl = isLocalhost
     ? "http://localhost:5173"
-    : process.env.CLIENT_URL || "http://13.61.17.142";
+    : process.env.CLIENT_URL || "https://devtinder7863.netlify.app";
+
+  if (state && typeof state === "string" && (state.startsWith("http://") || state.startsWith("https://"))) {
+    clientUrl = state;
+  }
   const serverUrl = isLocalhost
     ? "http://localhost:7777"
     : process.env.SERVER_URL || "http://13.61.17.142:7777";
