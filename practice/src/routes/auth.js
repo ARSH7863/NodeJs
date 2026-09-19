@@ -6,6 +6,18 @@ const { validateSignUpData } = require("../utils/validation.js");
 const User = require("../models/user.js");
 const bcrypt = require("bcrypt");
 
+const getCookieOptions = (req) => {
+  const isHttps =
+    req.secure ||
+    req.headers["x-forwarded-proto"] === "https" ||
+    (process.env.CLIENT_URL && process.env.CLIENT_URL.startsWith("https://"));
+  return {
+    httpOnly: true,
+    secure: Boolean(isHttps),
+    sameSite: isHttps ? "none" : "lax",
+  };
+};
+
 // =========================
 // SIGNUP
 // =========================
@@ -59,9 +71,7 @@ authRouter.post("/login", async (req, res) => {
     const token = await user.getJWT();
 
     res.cookie("token", token, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
+      ...getCookieOptions(req),
       maxAge: 8 * 60 * 60 * 1000,
     });
 
@@ -80,9 +90,7 @@ authRouter.post("/login", async (req, res) => {
 
 authRouter.post("/logout", async (req, res) => {
   res.cookie("token", "", {
-    httpOnly: true,
-    secure: false,
-    sameSite: "lax",
+    ...getCookieOptions(req),
     expires: new Date(0),
   });
 
@@ -178,10 +186,8 @@ authRouter.get("/auth/github/callback", async (req, res) => {
     const token = await user.getJWT();
     // 6. Set HTTP-only Cookie
     res.cookie("token", token, {
+      ...getCookieOptions(req),
       expires: new Date(Date.now() + 8 * 3600000),
-      httpOnly: true,
-      secure: false, // Set to true if you add SSL (https) later
-      sameSite: "lax",
     });
     // 7. Redirect to frontend (user is now logged in!)
     res.redirect(`${clientUrl}/`);
@@ -310,10 +316,8 @@ authRouter.get("/auth/google/callback", async (req, res) => {
     // 4. Generate JWT & set cookie
     const token = await user.getJWT();
     res.cookie("token", token, {
+      ...getCookieOptions(req),
       expires: new Date(Date.now() + 8 * 3600000),
-      httpOnly: true,
-      secure: false, // Set to true when HTTPS is enabled
-      sameSite: "lax",
     });
 
     // 5. Redirect to frontend
