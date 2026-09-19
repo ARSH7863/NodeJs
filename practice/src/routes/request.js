@@ -5,6 +5,7 @@ const requestRouter = express.Router();
 const { userAuth } = require("../middleware/auth.js");
 const User = require("../models/user.js");
 const ConnectionRequest = require("../models/connectionRequest.js");
+const { sendEmail } = require("../utils/sendEmail.js");
 
 requestRouter.post(
   "/request/send/:status/:toUserId",
@@ -62,6 +63,26 @@ requestRouter.post(
       }
 
       const data = await connectionRequest.save();
+
+      // Send email notification if status is interested
+      if (status === "interested") {
+        try {
+          const receiverName = toUser.firstName;
+          const senderName = `${req.user.firstName} ${req.user.lastName || ""}`.trim();
+
+          const emailBody = `Hi ${receiverName},\n\nYou got a new connection request from ${senderName}.\n\nYour DevTinder.`;
+          const emailHtml = `<p>Hi ${receiverName},</p><p>You got a new connection request from <strong>${senderName}</strong>.</p><p>Your DevTinder.</p>`;
+
+          await sendEmail({
+            toAddresses: toUser.emailId,
+            subject: "New Connection Request",
+            body: emailBody,
+            htmlBody: emailHtml,
+          });
+        } catch (emailErr) {
+          console.error("Failed to send connection request email:", emailErr.message);
+        }
+      }
 
       res.json({
         message: `${req.user.firstName} is ${status} in ${toUser.firstName}`,
