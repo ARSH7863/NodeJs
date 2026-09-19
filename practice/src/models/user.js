@@ -25,10 +25,6 @@ const userSchema = new mongoose.Schema(
         }
       },
     },
-    password: {
-      type: String,
-      required: true,
-    },
     age: {
       type: Number,
       min: 18,
@@ -63,6 +59,15 @@ const userSchema = new mongoose.Schema(
     skills: {
       type: [String],
     },
+    githubId: {
+      type: String,
+    },
+    password: {
+      type: String,
+      required: function () {
+        return !this.githubId;
+      },
+    },
   },
   { timestamps: true },
 );
@@ -80,6 +85,10 @@ userSchema.methods.getJWT = async function () {
 userSchema.methods.validatePassword = async function (passwordInputByUser) {
   const user = this;
   const passwordHash = user.password;
+
+  if (!passwordHash || !passwordInputByUser) {
+    return false;
+  }
 
   const isPasswordValid = await bcrypt.compare(
     passwordInputByUser,
