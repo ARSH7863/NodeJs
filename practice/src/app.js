@@ -1,8 +1,9 @@
-require("dotenv").config();
 const express = require("express");
 const connectDB = require("./config/database.js");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
+require("dotenv").config();
+require("./utils/cronJob.js");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -17,7 +18,10 @@ const allowedOrigins = [
   "https://devtinder7863.netlify.app",
 ];
 
-if (process.env.CLIENT_URL && !allowedOrigins.includes(process.env.CLIENT_URL)) {
+if (
+  process.env.CLIENT_URL &&
+  !allowedOrigins.includes(process.env.CLIENT_URL)
+) {
   allowedOrigins.push(process.env.CLIENT_URL);
 }
 
@@ -34,7 +38,6 @@ app.use(
     credentials: true,
   }),
 );
-
 
 app.use(express.json());
 app.use(cookieParser());
