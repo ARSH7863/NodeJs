@@ -14,9 +14,12 @@ app.set("trust proxy", 1);
 const allowedOrigins = [
   "http://localhost:5173",
   "http://13.61.17.142",
-  "https://devtinder-alf.pages.dev",
   "https://devtinder7863.netlify.app",
 ];
+
+if (process.env.CLIENT_URL && !allowedOrigins.includes(process.env.CLIENT_URL)) {
+  allowedOrigins.push(process.env.CLIENT_URL);
+}
 
 app.use(
   cors({
@@ -54,12 +57,14 @@ app.use("/", userRouter);
 // DATABASE + SERVER
 // =========================
 
+const PORT = process.env.PORT || 7777;
+
 connectDB()
   .then(() => {
     console.log("Database connected successfully...");
 
-    app.listen(7777, () => {
-      console.log("Server running on port 7777");
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
     });
   })
   .catch((err) => {

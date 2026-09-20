@@ -80,7 +80,7 @@ userSchema.index({ gender: 1 });
 userSchema.methods.getJWT = async function () {
   const user = this;
 
-  return jwt.sign({ _id: user._id }, "ArshShaikh@12", {
+  return jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
 };

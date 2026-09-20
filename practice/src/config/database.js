@@ -1,9 +1,7 @@
 const mongoose = require("mongoose");
 
 const connectDB = async () => {
-  await mongoose.connect(
-    "mongodb+srv://arsh7863:arshshaikh3@express-test.cuieldb.mongodb.net/learning",
-  );
+  await mongoose.connect(process.env.MONGODB_URI);
 };
 
 module.exports = connectDB;
