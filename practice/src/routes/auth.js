@@ -216,14 +216,12 @@ authRouter.get("/auth/google", (req, res) => {
     req.get("host")?.includes("localhost") ||
     req.get("host")?.includes("127.0.0.1");
 
-  // Build redirect_uri dynamically so it always matches the registered URI
-  // regardless of whether the server runs locally or on EC2
-  const serverUrl = isLocalhost
-    ? "http://localhost:7777"
-    : process.env.SERVER_URL || `http://${req.get("host")}`;
+  const callbackUrl = isLocalhost
+    ? "http://localhost:7777/auth/google/callback"
+    : (process.env.GOOGLE_CALLBACK_URL || "https://devtinder7863.netlify.app/api/auth/google/callback");
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = encodeURIComponent(`${serverUrl}/auth/google/callback`);
+  const redirectUri = encodeURIComponent(callbackUrl);
   const scope = encodeURIComponent("openid email profile");
 
   let from = req.query.from || "";
@@ -254,6 +252,11 @@ authRouter.get("/auth/google/callback", async (req, res) => {
   const isLocalhost =
     req.get("host")?.includes("localhost") ||
     req.get("host")?.includes("127.0.0.1");
+
+  const callbackUrl = isLocalhost
+    ? "http://localhost:7777/auth/google/callback"
+    : (process.env.GOOGLE_CALLBACK_URL || "https://devtinder7863.netlify.app/api/auth/google/callback");
+
   let clientUrl = isLocalhost
     ? "http://localhost:5173"
     : process.env.CLIENT_URL || "https://devtinder7863.netlify.app";
@@ -261,9 +264,6 @@ authRouter.get("/auth/google/callback", async (req, res) => {
   if (state && typeof state === "string" && (state.startsWith("http://") || state.startsWith("https://"))) {
     clientUrl = state;
   }
-  const serverUrl = isLocalhost
-    ? "http://localhost:7777"
-    : process.env.SERVER_URL || "http://13.61.17.142:7777";
 
   if (!code) {
     return res.redirect(`${clientUrl}/login?error=OAuthFailed`);
@@ -277,7 +277,7 @@ authRouter.get("/auth/google/callback", async (req, res) => {
         code,
         client_id: process.env.GOOGLE_CLIENT_ID,
         client_secret: process.env.GOOGLE_CLIENT_SECRET,
-        redirect_uri: `${serverUrl}/auth/google/callback`,
+        redirect_uri: callbackUrl,
         grant_type: "authorization_code",
       },
       { headers: { "Content-Type": "application/json" } },
