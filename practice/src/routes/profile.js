@@ -9,7 +9,7 @@ const { userAuth } = require("../middleware/auth.js");
 const { validateProfileEditData } = require("../utils/validation.js");
 
 const USER_SAFE_DATA =
-  "firstName lastName emailId photoURL age gender about skills";
+  "firstName lastName emailId photoURL age gender about skills isPremium membershipType";
 
 profileRouter.get("/profile/view", userAuth, async (req, res) => {
   try {

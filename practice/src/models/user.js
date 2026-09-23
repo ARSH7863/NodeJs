@@ -71,6 +71,14 @@ const userSchema = new mongoose.Schema(
         return !this.githubId && !this.googleId;
       },
     },
+    isPremium: {
+      type: Boolean,
+      default: false,
+    },
+    membershipType: {
+      type: String,
+      enum: ["silver", "gold"],
+    },
   },
   { timestamps: true },
 );
