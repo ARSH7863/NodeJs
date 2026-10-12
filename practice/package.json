@@ -26,6 +26,7 @@
     "mongoose": "^9.6.1",
     "node-cron": "^4.6.0",
     "razorpay": "^2.9.8",
+    "socket.io": "^4.8.4",
     "validator": "^13.15.35"
   },
   "description": ""

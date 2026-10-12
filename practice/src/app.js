@@ -2,6 +2,9 @@ const express = require("express");
 const connectDB = require("./config/database.js");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
+const http = require("http");
+const initializeSocket = require("./utils/socket.js");
+
 require("dotenv").config();
 require("./utils/cronJob.js");
 
@@ -17,6 +20,8 @@ const allowedOrigins = [
   "http://13.61.17.142",
   "https://devtinder7863.netlify.app",
 ];
+
+const server = http.createServer(app);
 
 if (
   process.env.CLIENT_URL &&
@@ -64,11 +69,13 @@ app.use("/", paymentRouter);
 
 const PORT = process.env.PORT || 7777;
 
+initializeSocket(server);
+
 connectDB()
   .then(() => {
     console.log("Database connected successfully...");
 
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
   })
