@@ -1,4 +1,5 @@
 const socket = require("socket.io");
+const Chat = require("../models/chat");
 
 const initializeSocket = (server) => {
   const io = socket(server, {
@@ -17,17 +18,40 @@ const initializeSocket = (server) => {
       socket.join(roomId);
     });
 
-    socket.on("sendMessage", ({ firstName, userId, targetUserId, text }) => {
-      const roomId = [userId, targetUserId].sort().join("_");
-      console.log(`${firstName} sent: ${text} in Room: ${roomId}`);
+    socket.on("sendMessage", async ({ firstName, userId, targetUserId, text }) => {
+      try {
+        const roomId = [userId, targetUserId].sort().join("_");
+        console.log(`${firstName} sent: ${text} in Room: ${roomId}`);
 
-      // Broadcast message to everyone in the room (or socket.to(roomId).emit(...) to exclude sender)
-      io.to(roomId).emit("messageReceived", {
-        firstName,
-        text,
-        senderId: userId,
-        createdAt: new Date(),
-      });
+        // Persist message in MongoDB
+        let chat = await Chat.findOne({
+          participants: { $all: [userId, targetUserId] },
+        });
+
+        if (!chat) {
+          chat = new Chat({
+            participants: [userId, targetUserId],
+            messages: [],
+          });
+        }
+
+        chat.messages.push({
+          senderId: userId,
+          text,
+        });
+
+        await chat.save();
+
+        // Broadcast message to everyone in the room
+        io.to(roomId).emit("messageReceived", {
+          firstName,
+          text,
+          senderId: userId,
+          createdAt: new Date(),
+        });
+      } catch (err) {
+        console.error("Error saving message:", err);
+      }
     });
 
     // Handle typing event
