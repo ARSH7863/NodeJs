@@ -4,12 +4,25 @@ const Chat = require("../models/chat");
 const initializeSocket = (server) => {
   const io = socket(server, {
     cors: {
-      origin: "http://localhost:5173",
+      origin: [
+        "http://localhost:5173",
+        "http://13.61.17.142",
+        "https://devtinder7863.netlify.app",
+      ],
+      credentials: true,  // Required for withCredentials: true on client
     },
   });
 
   io.on("connection", (socket) => {
-    // Handle events
+    // 1. Join user's personal room for direct notifications
+    socket.on("joinUser", ({ userId }) => {
+      if (userId) {
+        socket.join(`user_${userId}`);
+        console.log(`Socket ${socket.id} joined personal room: user_${userId}`);
+      }
+    });
+
+    // 2. Join a specific chat conversation room
     socket.on("joinChat", ({ firstName, userId, targetUserId }) => {
       // Sort IDs so room ID is identical regardless of who initiates
       const roomId = [userId, targetUserId].sort().join("_");
@@ -42,11 +55,23 @@ const initializeSocket = (server) => {
 
         await chat.save();
 
-        // Broadcast message to everyone in the room
-        io.to(roomId).emit("messageReceived", {
+        const messageData = {
           firstName,
           text,
           senderId: userId,
+          targetUserId,
+          createdAt: new Date(),
+        };
+
+        // 1. Broadcast message to everyone currently inside the conversation room
+        io.to(roomId).emit("messageReceived", messageData);
+
+        // 2. ALSO send a direct notification to target user's personal room
+        // (Even if they are viewing someone else's chat or elsewhere on the app)
+        io.to(`user_${targetUserId}`).emit("newNotification", {
+          senderId: userId,
+          firstName,
+          text,
           createdAt: new Date(),
         });
       } catch (err) {
