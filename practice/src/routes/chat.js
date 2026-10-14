@@ -22,6 +22,21 @@ chatRouter.get("/chat/:targetUserId", userAuth, async (req, res) => {
         messages: [],
       });
       await chat.save();
+    } else {
+      // Mark all incoming messages from targetUserId as read
+      await Chat.updateOne(
+        { _id: chat._id },
+        {
+          $set: {
+            "messages.$[msg].status": "read",
+          },
+        },
+        {
+          arrayFilters: [
+            { "msg.senderId": targetUserId, "msg.status": "delivered" },
+          ],
+        }
+      );
     }
 
     res.json(chat);
