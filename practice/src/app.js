@@ -3,7 +3,8 @@ const connectDB = require("./config/database.js");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const http = require("http");
-const initializeSocket = require("./utils/socket.js");
+const { initializeSocket } = require("./utils/socket.js");
+const User = require("./models/user.js");
 
 require("dotenv").config();
 require("./utils/cronJob.js");
@@ -74,8 +75,16 @@ const PORT = process.env.PORT || 7777;
 initializeSocket(server);
 
 connectDB()
-  .then(() => {
+  .then(async () => {
     console.log("Database connected successfully...");
+
+    // Reset any stale isOnline flags from previous server runs
+    try {
+      await User.updateMany({}, { isOnline: false });
+      console.log("Reset stale user online statuses.");
+    } catch (err) {
+      console.error("Error resetting user online status:", err);
+    }
 
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

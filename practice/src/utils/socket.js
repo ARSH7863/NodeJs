@@ -1,5 +1,6 @@
 const socket = require("socket.io");
 const Chat = require("../models/chat");
+const User = require("../models/user");
 
 // Map to track active connections: userId -> Set of socket IDs
 const onlineUsers = new Map();
@@ -31,6 +32,15 @@ const initializeSocket = (server) => {
         onlineUsers.set(authenticatedUserId, new Set());
       }
       onlineUsers.get(authenticatedUserId).add(socket.id);
+
+      // Update user in DB
+      try {
+        await User.findByIdAndUpdate(authenticatedUserId, {
+          isOnline: true,
+        });
+      } catch (e) {
+        console.error("Error setting isOnline:", e);
+      }
 
       // Broadcast online status to others
       io.emit("userOnline", { userId: authenticatedUserId });
@@ -273,18 +283,58 @@ const initializeSocket = (server) => {
       }
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
       console.log("Socket disconnected:", socket.id);
       if (authenticatedUserId && onlineUsers.has(authenticatedUserId)) {
         onlineUsers.get(authenticatedUserId).delete(socket.id);
         if (onlineUsers.get(authenticatedUserId).size === 0) {
           onlineUsers.delete(authenticatedUserId);
-          io.emit("userOffline", { userId: authenticatedUserId });
-          console.log(`User ${authenticatedUserId} is now offline`);
+
+          const now = new Date();
+          try {
+            await User.findByIdAndUpdate(authenticatedUserId, {
+              isOnline: false,
+              lastSeen: now,
+            });
+          } catch (e) {
+            console.error("Error setting lastSeen on disconnect:", e);
+          }
+
+          io.emit("userOffline", {
+            userId: authenticatedUserId,
+            lastSeen: now,
+          });
+          console.log(`User ${authenticatedUserId} is now offline at ${now.toISOString()}`);
         }
+      }
+    });
+
+    // 6. Explicit logout event from client
+    socket.on("logoutUser", async ({ userId }) => {
+      const uId = String(userId || authenticatedUserId);
+      if (uId && onlineUsers.has(uId)) {
+        onlineUsers.delete(uId);
+        const now = new Date();
+        try {
+          await User.findByIdAndUpdate(uId, {
+            isOnline: false,
+            lastSeen: now,
+          });
+        } catch (e) {
+          console.error("Error setting isOnline on logoutUser:", e);
+        }
+
+        io.emit("userOffline", {
+          userId: uId,
+          lastSeen: now,
+        });
+        console.log(`User ${uId} logged out explicitly at ${now.toISOString()}`);
       }
     });
   });
 };
 
-module.exports = initializeSocket;
+module.exports = {
+  initializeSocket,
+  onlineUsers,
+};

@@ -5,7 +5,7 @@ const { userAuth } = require("../middleware/auth");
 const User = require("../models/user");
 const ConnectionRequestModel = require("../models/connectionRequest");
 
-const USER_SAFE_DATA = "firstName lastName photoURL age gender about skills isPremium membershipType";
+const USER_SAFE_DATA = "firstName lastName photoURL age gender about skills isPremium membershipType isOnline lastSeen";
 
 // Get all pending connection requests received by logged-in user
 userRouter.get("/user/requests/received", userAuth, async (req, res) => {
@@ -29,6 +29,8 @@ userRouter.get("/user/requests/received", userAuth, async (req, res) => {
   }
 });
 
+const { onlineUsers } = require("../utils/socket.js");
+
 userRouter.get("/user/connections", userAuth, async (req, res) => {
   try {
     const loggedInUser = req.user;
@@ -43,10 +45,16 @@ userRouter.get("/user/connections", userAuth, async (req, res) => {
       .populate("toUserId", USER_SAFE_DATA);
 
     const data = connectionRequests.filter((row) => row.fromUserId && row.toUserId).map((row) => {
-      if (row.fromUserId._id.toString() === loggedInUser._id.toString()) {
-        return row.toUserId;
-      }
-      return row.fromUserId;
+      const userObj =
+        row.fromUserId._id.toString() === loggedInUser._id.toString()
+          ? row.toUserId.toObject()
+          : row.fromUserId.toObject();
+
+      // Override isOnline dynamically with real-time socket connection status
+      const userIdStr = userObj._id.toString();
+      userObj.isOnline = Boolean(onlineUsers.has(userIdStr) && onlineUsers.get(userIdStr).size > 0);
+
+      return userObj;
     });
 
     res.json({ data });

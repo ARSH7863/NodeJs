@@ -79,6 +79,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["silver", "gold"],
     },
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+    lastSeen: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true },
 );

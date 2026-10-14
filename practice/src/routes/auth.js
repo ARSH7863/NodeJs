@@ -89,6 +89,22 @@ authRouter.post("/login", async (req, res) => {
 // =========================
 
 authRouter.post("/logout", async (req, res) => {
+  try {
+    const { token } = req.cookies;
+    if (token) {
+      const jwt = require("jsonwebtoken");
+      const decodedObj = jwt.verify(token, process.env.JWT_SECRET);
+      if (decodedObj && decodedObj._id) {
+        await User.findByIdAndUpdate(decodedObj._id, {
+          isOnline: false,
+          lastSeen: new Date(),
+        });
+      }
+    }
+  } catch (_) {
+    // If token invalid or expired, continue to clear cookie
+  }
+
   res.cookie("token", "", {
     ...getCookieOptions(req),
     expires: new Date(0),
