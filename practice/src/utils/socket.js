@@ -10,8 +10,10 @@ const initializeSocket = (server) => {
     cors: {
       origin: [
         "http://localhost:5173",
+        "http://localhost:7777",
         "http://13.61.17.142",
         "https://devtinder7863.netlify.app",
+        /\.netlify\.app$/,
       ],
       credentials: true, // Required for withCredentials: true on client
     },
@@ -104,8 +106,12 @@ const initializeSocket = (server) => {
 
     // 2. Join a specific chat conversation room
     socket.on("joinChat", ({ firstName, userId, targetUserId }) => {
-      // Sort IDs so room ID is identical regardless of who initiates
-      const roomId = [userId, targetUserId].sort().join("_");
+      if (!userId || !targetUserId) {
+        console.warn("[joinChat] Missing userId or targetUserId:", { userId, targetUserId });
+        return;
+      }
+      // Ensure strings before sort to guarantee identical roomId
+      const roomId = [String(userId), String(targetUserId)].sort().join("_");
 
       // Leave previous chat room if user switched contacts
       if (socket.currentRoom && socket.currentRoom !== roomId) {
@@ -114,14 +120,16 @@ const initializeSocket = (server) => {
       }
 
       socket.currentRoom = roomId;
-      console.log(`User ${firstName || userId} joining Room: ${roomId}`);
       socket.join(roomId);
+
+      const clientsInRoom = io.sockets.adapter.rooms.get(roomId)?.size || 1;
+      console.log(`User ${firstName || userId} joined Room: ${roomId} (Total in room: ${clientsInRoom})`);
     });
 
     // Explicit leave room event when user switches contact or exits chat
     socket.on("leaveChat", ({ userId, targetUserId }) => {
       if (userId && targetUserId) {
-        const roomId = [userId, targetUserId].sort().join("_");
+        const roomId = [String(userId), String(targetUserId)].sort().join("_");
         socket.leave(roomId);
         console.log(`User ${userId} left Room: ${roomId}`);
       }
@@ -129,8 +137,14 @@ const initializeSocket = (server) => {
 
     socket.on("sendMessage", async ({ firstName, userId, targetUserId, text, tempId }) => {
       try {
-        const roomId = [userId, targetUserId].sort().join("_");
-        console.log(`${firstName} sent: ${text} in Room: ${roomId}`);
+        if (!userId || !targetUserId || !text) {
+          console.warn("[sendMessage] Missing fields:", { userId, targetUserId, text });
+          return;
+        }
+
+        const roomId = [String(userId), String(targetUserId)].sort().join("_");
+        const clientsInRoom = io.sockets.adapter.rooms.get(roomId)?.size || 0;
+        console.log(`${firstName} sent: "${text}" in Room: ${roomId} (Clients in room: ${clientsInRoom})`);
 
         // Check if recipient is online
         const targetIdStr = String(targetUserId);
