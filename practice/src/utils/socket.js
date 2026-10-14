@@ -26,9 +26,25 @@ const initializeSocket = (server) => {
     socket.on("joinChat", ({ firstName, userId, targetUserId }) => {
       // Sort IDs so room ID is identical regardless of who initiates
       const roomId = [userId, targetUserId].sort().join("_");
-      console.log(`User ${firstName || userId} joining Room: ${roomId}`);
 
+      // Leave previous chat room if user switched contacts
+      if (socket.currentRoom && socket.currentRoom !== roomId) {
+        socket.leave(socket.currentRoom);
+        console.log(`Socket ${socket.id} left Room: ${socket.currentRoom}`);
+      }
+
+      socket.currentRoom = roomId;
+      console.log(`User ${firstName || userId} joining Room: ${roomId}`);
       socket.join(roomId);
+    });
+
+    // Explicit leave room event when user switches contact or exits chat
+    socket.on("leaveChat", ({ userId, targetUserId }) => {
+      if (userId && targetUserId) {
+        const roomId = [userId, targetUserId].sort().join("_");
+        socket.leave(roomId);
+        console.log(`User ${userId} left Room: ${roomId}`);
+      }
     });
 
     socket.on("sendMessage", async ({ firstName, userId, targetUserId, text, tempId }) => {
@@ -130,6 +146,41 @@ const initializeSocket = (server) => {
     socket.on("stopTyping", ({ userId, targetUserId }) => {
       const roomId = [userId, targetUserId].sort().join("_");
       socket.to(roomId).emit("stopTyping", { userId });
+    });
+
+    // Handle clear chat event (Only clears for the requesting user)
+    socket.on("clearChat", async ({ userId, targetUserId }) => {
+      try {
+        const chat = await Chat.findOne({
+          participants: { $all: [userId, targetUserId] },
+        });
+
+        if (chat) {
+          if (!chat.clearedBy) {
+            chat.clearedBy = [];
+          }
+
+          const existingIndex = chat.clearedBy.findIndex(
+            (c) => c.userId?.toString() === userId.toString()
+          );
+
+          if (existingIndex > -1) {
+            chat.clearedBy[existingIndex].clearedAt = new Date();
+          } else {
+            chat.clearedBy.push({
+              userId,
+              clearedAt: new Date(),
+            });
+          }
+
+          await chat.save();
+        }
+
+        // Notify ONLY the user who initiated the clear (not the other user)
+        socket.emit("chatCleared", { userId, targetUserId });
+      } catch (err) {
+        console.error("Error clearing chat via socket:", err);
+      }
     });
 
     socket.on("disconnect", () => {
