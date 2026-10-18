@@ -10,7 +10,9 @@ const getCookieOptions = (req) => {
   const isHttps =
     req.secure ||
     req.headers["x-forwarded-proto"] === "https" ||
-    (process.env.CLIENT_URL && process.env.CLIENT_URL.startsWith("https://"));
+    (process.env.CLIENT_URL && process.env.CLIENT_URL.startsWith("https://")) ||
+    (process.env.SERVER_URL && process.env.SERVER_URL.startsWith("https://"));
+
   return {
     httpOnly: true,
     secure: Boolean(isHttps),
@@ -218,8 +220,8 @@ authRouter.get("/auth/github/callback", async (req, res) => {
       ...getCookieOptions(req),
       expires: new Date(Date.now() + 8 * 3600000),
     });
-    // 7. Redirect to frontend (user is now logged in!)
-    res.redirect(`${clientUrl}/`);
+    // 7. Redirect to frontend with token param (supports both cookie & header auth)
+    res.redirect(`${clientUrl}/login?token=${token}`);
   } catch (err) {
     console.error("GitHub Auth Error:", err);
     res.redirect(`${clientUrl}/login?error=OAuthFailed`);
@@ -349,8 +351,8 @@ authRouter.get("/auth/google/callback", async (req, res) => {
       expires: new Date(Date.now() + 8 * 3600000),
     });
 
-    // 5. Redirect to frontend
-    res.redirect(`${clientUrl}/`);
+    // 5. Redirect to frontend with token param (supports both cookie & header auth)
+    res.redirect(`${clientUrl}/login?token=${token}`);
   } catch (err) {
     console.error("Google Auth Error:", err.response?.data || err.message);
     res.redirect(`${clientUrl}/login?error=OAuthFailed`);
