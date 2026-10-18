@@ -196,11 +196,6 @@ const initializeSocket = (server) => {
         // 1. Broadcast to everyone in the conversation room
         io.to(roomId).emit("messageReceived", messageData);
 
-        // Also emit directly to recipient's personal room (in case they haven't joined roomId yet)
-        if (targetIdStr !== senderIdStr) {
-          io.to(`user_${targetUserId}`).emit("messageReceived", messageData);
-        }
-
         // 2. Ack back to sender only — carries delivery status (sent vs delivered)
         socket.emit("messageSent", {
           tempId,
