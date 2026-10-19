@@ -5,6 +5,10 @@ const User = require("../models/user");
 // Map to track active connections: userId -> Set of socket IDs
 const onlineUsers = new Map();
 
+// Exported so other modules (e.g., auth.js) can emit global events
+let ioInstance = null;
+const getIO = () => ioInstance;
+
 const initializeSocket = (server) => {
   const io = socket(server, {
     cors: {
@@ -18,6 +22,9 @@ const initializeSocket = (server) => {
       credentials: true, // Required for withCredentials: true on client
     },
   });
+
+  // Store io reference immediately after creation
+  ioInstance = io;
 
   io.on("connection", (socket) => {
     let authenticatedUserId = null;
@@ -351,4 +358,5 @@ const initializeSocket = (server) => {
 module.exports = {
   initializeSocket,
   onlineUsers,
+  getIO,
 };

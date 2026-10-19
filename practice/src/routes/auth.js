@@ -5,6 +5,7 @@ const axios = require("axios");
 const { validateSignUpData } = require("../utils/validation.js");
 const User = require("../models/user.js");
 const bcrypt = require("bcrypt");
+const { getIO } = require("../utils/socket.js");
 
 const getCookieOptions = (req) => {
   const isHttps =
@@ -18,6 +19,28 @@ const getCookieOptions = (req) => {
     secure: Boolean(isHttps),
     sameSite: isHttps ? "none" : "lax",
   };
+};
+
+// Shared helper: broadcast new user to all connected clients
+const emitNewUserJoined = (user) => {
+  try {
+    const io = getIO();
+    if (!io) return;
+    io.emit("newUserJoined", {
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      photoURL: user.photoURL,
+      age: user.age,
+      gender: user.gender,
+      about: user.about,
+      skills: user.skills,
+      isPremium: user.isPremium || false,
+      isOnline: false,
+    });
+  } catch (e) {
+    console.error("Socket emit newUserJoined error:", e.message);
+  }
 };
 
 // =========================
@@ -43,6 +66,9 @@ authRouter.post("/signup", async (req, res) => {
     });
 
     await user.save();
+
+    // Notify all online users in real-time that a new developer joined
+    emitNewUserJoined(user);
 
     res.send("User added successfully");
   } catch (err) {
@@ -208,6 +234,7 @@ authRouter.get("/auth/github/callback", async (req, res) => {
         about: ghUser.bio || "Full-stack Developer",
       });
       await user.save();
+      emitNewUserJoined(user); // Broadcast to all connected users' feeds
     } else if (!user.githubId) {
       user.githubId = String(ghUser.id);
       if (!user.photoURL) user.photoURL = ghUser.avatar_url;
@@ -335,6 +362,7 @@ authRouter.get("/auth/google/callback", async (req, res) => {
         about: "Google Sign-In User",
       });
       await user.save();
+      emitNewUserJoined(user); // Broadcast to all connected users' feeds
     } else if (!user.googleId) {
       // Link Google to existing account
       user.googleId = gUser.sub;
