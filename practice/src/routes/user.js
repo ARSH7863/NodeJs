@@ -104,6 +104,7 @@ userRouter.get("/user/feed", userAuth, async (req, res) => {
       ],
     })
       .select(USER_SAFE_DATA)
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
