@@ -73,39 +73,40 @@ userRouter.get("/user/feed", userAuth, async (req, res) => {
 
     const loggedInUser = req.user;
 
-    const page = parseInt(req.query.page) || 1;
     let limit = parseInt(req.query.limit) || 10;
     limit = limit > 50 ? 50 : limit;
-    const skip = (page - 1) * limit;
 
-    // Find all connection request (sent + received)
+    // Cursor-based pagination: lastId is the _id of the last user seen
+    // This prevents users being skipped when the hideUsersFromFeed set
+    // changes between page loads (e.g., due to a swipe happening mid-session)
+    const lastId = req.query.lastId || null;
+
+    // Find all connection requests (sent + received)
     const connectionRequests = await ConnectionRequestModel.find({
       $or: [
-        {
-          fromUserId: loggedInUser._id,
-        },
-        {
-          toUserId: loggedInUser._id,
-        },
+        { fromUserId: loggedInUser._id },
+        { toUserId: loggedInUser._id },
       ],
     }).select("fromUserId toUserId");
 
     const hideUsersFromFeed = new Set();
-
     connectionRequests.forEach((req) => {
       hideUsersFromFeed.add(req.fromUserId.toString());
       hideUsersFromFeed.add(req.toUserId.toString());
     });
 
-    const users = await User.find({
+    const filter = {
       $and: [
         { _id: { $nin: Array.from(hideUsersFromFeed) } },
         { _id: { $ne: loggedInUser._id } },
+        // Cursor: only fetch users created before the last seen user
+        ...(lastId ? [{ _id: { $lt: lastId } }] : []),
       ],
-    })
+    };
+
+    const users = await User.find(filter)
       .select(USER_SAFE_DATA)
-      .sort({ createdAt: -1 })
-      .skip(skip)
+      .sort({ _id: -1 })
       .limit(limit);
 
     res.json({
